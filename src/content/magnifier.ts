@@ -12,6 +12,14 @@ export class MagnifierController {
   private clone: HTMLImageElement;
   private isActive: boolean = false;
   private zoomFactor: number = 2.5;
+  private isDisabled: boolean = false;
+
+  public setDisabled(disabled: boolean) {
+    this.isDisabled = disabled;
+    if (disabled) {
+      this.deactivate();
+    }
+  }
 
   // Damping properties
   private targetX: number = 0;
@@ -40,6 +48,7 @@ export class MagnifierController {
   }
 
   private handleMouseMove(e: MouseEvent) {
+    if (this.isDisabled) return;
     if (!this.isActive) return;
 
     const rect = this.targetImage.getBoundingClientRect();
@@ -112,6 +121,7 @@ export class MagnifierController {
   }
 
   public activate(highResSrc: string, zoomFactor: number = 2.5) {
+    if (this.isDisabled) return;
     this.isActive = true;
     this.zoomFactor = zoomFactor;
     this.clone.src = highResSrc;

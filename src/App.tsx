@@ -47,18 +47,18 @@ function matchesShortcut(e: KeyboardEvent, shortcutStr: string): boolean {
   return eventKey === mainKey;
 }
 
-// Sample preloaded images for infinite scroll appending
+// Sample preloaded images and videos for infinite scroll appending
 const MOCK_INFINITE_PRESETS = [
   'https://images.unsplash.com/photo-1501854140801-50d01698950b?auto=format&fit=crop&w=600&q=80',
+  'https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4',
   'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?auto=format&fit=crop&w=600&q=80',
+  'https://vjs.zencdn.net/v/oceans.mp4',
   'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?auto=format&fit=crop&w=600&q=80',
-  'https://images.unsplash.com/photo-1513836279014-a89f7a76ae86?auto=format&fit=crop&w=600&q=80',
-  'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=600&q=80',
-  'https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&w=600&q=80'
+  'https://www.w3schools.com/html/mov_bbb.mp4'
 ];
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'article' | 'store' | 'portfolio' | 'infinite'>('article');
+  const [activeTab, setActiveTab] = useState<'article' | 'store' | 'carousel' | 'portfolio' | 'infinite'>('article');
   
   // Storage states synced with simulated localStorage
   const [settings, setSettings] = useState(() => {
@@ -76,6 +76,7 @@ export default function App() {
 
   const [infiniteImages, setInfiniteImages] = useState<string[]>([
     'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?auto=format&fit=crop&w=600&q=80',
+    'https://vjs.zencdn.net/v/oceans.mp4',
     'https://images.unsplash.com/photo-1513836279014-a89f7a76ae86?auto=format&fit=crop&w=600&q=80'
   ]);
 
@@ -204,6 +205,7 @@ export default function App() {
     switch (activeTab) {
       case 'article': return 'https://thejournal.org/features/analog-renaissance';
       case 'store': return 'https://apxsport.com/products/scarlet-carbon-trainer';
+      case 'carousel': return 'https://mediastream.com/galleries/mixed-media-carousel';
       case 'portfolio': return 'https://unsplash.com/vistas-photography-portfolio';
       case 'infinite': return 'https://graphstream.app/feed/live-photos';
     }
@@ -286,56 +288,208 @@ function injectAndTrigger(tabId: number, startUrl?: string) {
     },
     'scanner.ts': {
       path: '/src/content/scanner.ts',
-      content: `export function findHighResSource(el: HTMLElement): string {
-  if (el.tagName.toLowerCase() === 'picture' || el.parentElement?.tagName.toLowerCase() === 'picture') {
-    const parent = el.tagName.toLowerCase() === 'picture' ? el : el.parentElement!;
-    const srcset = parent.querySelector('source')?.getAttribute('srcset');
-    if (srcset) return parseSrcset(srcset);
-  }
-
-  const highResAttrs = ['data-zoom-src', 'data-original', 'data-full-src', 'data-large'];
-  for (const attr of highResAttrs) {
-    const val = el.getAttribute(attr);
-    if (val) return val;
-  }
-  return (el as HTMLImageElement).currentSrc || (el as HTMLImageElement).src || '';
+      content: `export interface MediaItem {
+  element: HTMLElement;
+  src: string;
+  highResSrc: string;
+  alt: string;
+  title: string;
+  rect: DOMRect;
+  width: number;
+  height: number;
+  type: 'img' | 'picture' | 'input' | 'bg' | 'video';
+  mediaType: 'image' | 'video';
+  caption?: string;
+  poster?: string;
 }
 
-export function scanImages(options: ScanOptions): CandidateImage[] {
-  const images: Map<string, CandidateImage> = new Map();
-  const collect = (node: Node) => {
+export type CandidateImage = MediaItem;
+
+export interface ScanOptions {
+  minWidth: number;
+  minHeight: number;
+  includeSmall: boolean;
+}
+
+function resolveUrl(url: string): string {
+  if (!url) return '';
+  try {
+    return new URL(url, window.location.href).href;
+  } catch {
+    return url;
+  }
+}
+
+function parseSrcset(srcset: string): string {
+  if (!srcset) return '';
+  const candidates = srcset.split(',').map(item => {
+    const parts = item.trim().split(/\\s+/);
+    const url = parts[0];
+    const descriptor = parts[1] || '';
+    let size = 0;
+    if (descriptor.endsWith('w')) {
+      size = parseInt(descriptor.slice(0, -1), 10) || 0;
+    } else if (descriptor.endsWith('x')) {
+      size = parseFloat(descriptor.slice(0, -1)) * 300 || 0;
+    }
+    return { url, size };
+  });
+
+  if (candidates.length === 0) return '';
+  candidates.sort((a, b) => b.size - a.size);
+  return resolveUrl(candidates[0].url);
+}
+
+export function findHighResSource(el: HTMLElement): string {
+  if (el.tagName.toLowerCase() === 'picture' || el.parentElement?.tagName.toLowerCase() === 'picture') {
+    const picture = el.tagName.toLowerCase() === 'picture' ? el : el.parentElement!;
+    const sources = picture.querySelectorAll('source');
+    for (const source of sources) {
+      const srcset = source.getAttribute('srcset');
+      if (srcset) {
+        const highRes = parseSrcset(srcset);
+        if (highRes) return highRes;
+      }
+    }
+  }
+
+  if (el instanceof HTMLImageElement && el.srcset) {
+    const highRes = parseSrcset(el.srcset);
+    if (highRes) return highRes;
+  }
+
+  const highResAttrs = [
+    'data-zoom-src',
+    'data-original',
+    'data-full-src',
+    'data-full',
+    'data-large',
+    'data-high-res',
+    'data-src'
+  ];
+
+  for (const attr of highResAttrs) {
+    const val = el.getAttribute(attr);
+    if (val && val.trim()) {
+      return resolveUrl(val.trim());
+    }
+  }
+
+  if (el instanceof HTMLImageElement) {
+    return resolveUrl(el.currentSrc || el.src);
+  }
+  return '';
+}
+
+export function scanImages(options: ScanOptions = { minWidth: 40, minHeight: 40, includeSmall: false }): MediaItem[] {
+  const mediaMap = new Map<string, MediaItem>();
+
+  const collectFromNode = (node: Node) => {
     if (node.nodeType !== Node.ELEMENT_NODE) return;
     const el = node as HTMLElement;
-    const tag = el.tagName.toLowerCase();
-    let src = '';
+    if (el.tagName.toLowerCase() === 'loupe-viewer') return;
 
-    if (tag === 'img') src = (el as HTMLImageElement).currentSrc || (el as HTMLImageElement).src;
-    else {
-      const bg = window.getComputedStyle(el).backgroundImage;
-      if (bg && bg !== 'none') {
-        const match = bg.match(/url\\(['"]?([^'"]+)['"]?\\)/);
-        if (match) src = match[1];
+    const tagName = el.tagName.toLowerCase();
+    let foundSrc = '';
+    let type: MediaItem['type'] = 'img';
+    let mediaType: MediaItem['mediaType'] = 'image';
+    let posterUrl = '';
+
+    if (tagName === 'img' && el instanceof HTMLImageElement) {
+      foundSrc = el.currentSrc || el.src;
+      type = 'img';
+      mediaType = 'image';
+    } else if (tagName === 'video' && el instanceof HTMLVideoElement) {
+      type = 'video';
+      mediaType = 'video';
+
+      // For video elements:
+      // - Retrieve the best available source URL by trying, in order: video.currentSrc (if non‑empty), video.src, or the src of the first <source> child element. Store this as the video’s canonical URL for matching and sidebar display.
+      let foundVideoSrc = '';
+      if (el.currentSrc && el.currentSrc.trim() !== '') {
+        foundVideoSrc = el.currentSrc;
+      } else if (el.src && el.src.trim() !== '') {
+        foundVideoSrc = el.src;
+      } else {
+        const firstSource = el.querySelector('source');
+        if (firstSource) {
+          foundVideoSrc = firstSource.getAttribute('src') || (firstSource as HTMLSourceElement).src || '';
+        }
+      }
+
+      if (!foundVideoSrc || !foundVideoSrc.trim()) {
+        const lazyVideoAttrs = ['data-src', 'data-video-src', 'data-original'];
+        for (const attr of lazyVideoAttrs) {
+          const val = el.getAttribute(attr);
+          if (val && val.trim()) {
+            foundVideoSrc = val.trim();
+            break;
+          }
+        }
+      }
+
+      foundSrc = foundVideoSrc;
+
+      let pUrl = el.getAttribute('poster') || el.poster || '';
+      if (pUrl) posterUrl = resolveUrl(pUrl);
+    }
+
+    if (foundSrc) {
+      const absoluteSrc = resolveUrl(foundSrc);
+      if (absoluteSrc && !absoluteSrc.startsWith('data:image/svg')) {
+        const rect = el.getBoundingClientRect();
+        let width = rect.width || el.offsetWidth || (el as any).videoWidth || 0;
+        let height = rect.height || el.offsetHeight || (el as any).videoHeight || 0;
+
+        // Use the poster image as a fallback for minimum‑size filtering: if the <video> element itself has a zero or near‑zero rendered size, attempt to load the poster (via a temporary Image object) to obtain dimensions; if the poster has dimensions ≥ the minimum threshold, include the video. If no poster or can’t load it, fall back to a reasonable default dimension (e.g., 300×200) to avoid excluding videos that haven’t rendered yet, or skip the video if you prefer a conservative approach.
+        if (mediaType === 'video' && (width <= 10 || height <= 10)) {
+          let posterWidth = 0;
+          let posterHeight = 0;
+          if (posterUrl) {
+            const tempImg = new Image();
+            tempImg.src = posterUrl;
+            if (tempImg.naturalWidth > 0 && tempImg.naturalHeight > 0) {
+              posterWidth = tempImg.naturalWidth;
+              posterHeight = tempImg.naturalHeight;
+            }
+          }
+
+          if (posterWidth > 0 && posterHeight > 0) {
+            width = posterWidth;
+            height = posterHeight;
+          } else {
+            width = 300;
+            height = 200;
+          }
+        }
+
+        const sizeMatches = options.includeSmall || (width >= options.minWidth && height >= options.minHeight);
+        if (sizeMatches && !mediaMap.has(absoluteSrc)) {
+          mediaMap.set(absoluteSrc, {
+            element: el,
+            src: absoluteSrc,
+            highResSrc: mediaType === 'video' ? absoluteSrc : (findHighResSource(el) || absoluteSrc),
+            alt: el.getAttribute('alt') || '',
+            title: el.getAttribute('title') || '',
+            rect,
+            width,
+            height,
+            type,
+            mediaType,
+            poster: posterUrl || undefined
+          });
+        }
       }
     }
 
-    if (src && !src.startsWith('data:image/svg')) {
-      const rect = el.getBoundingClientRect();
-      const matchW = rect.width >= options.minWidth;
-      const matchH = rect.height >= options.minHeight;
-      if (options.includeSmall || (matchW && matchH)) {
-        images.set(src, {
-          element: el,
-          src,
-          highResSrc: findHighResSource(el) || src,
-          alt: el.getAttribute('alt') || '',
-          rect
-        });
-      }
+    if (el.shadowRoot) {
+      Array.from(el.shadowRoot.children).forEach(collectFromNode);
     }
-    el.children && Array.from(el.children).forEach(collect);
+    el.children && Array.from(el.children).forEach(collectFromNode);
   };
-  collect(document.body);
-  return Array.from(images.values());
+
+  collectFromNode(document.body);
+  return Array.from(mediaMap.values());
 }`
     },
     'viewer-host.ts': {
@@ -649,6 +803,12 @@ export class LoupeViewer extends HTMLElement {
                   Product Detail
                 </button>
                 <button 
+                  onClick={() => setActiveTab('carousel')}
+                  className={`text-[10px] font-bold px-2 py-1 rounded transition ${activeTab === 'carousel' ? 'bg-[#ff5f40] text-white' : 'text-zinc-400 hover:text-white'}`}
+                >
+                  Mixed Carousel
+                </button>
+                <button 
                   onClick={() => setActiveTab('portfolio')}
                   className={`text-[10px] font-bold px-2 py-1 rounded transition ${activeTab === 'portfolio' ? 'bg-[#ff5f40] text-white' : 'text-zinc-400 hover:text-white'}`}
                 >
@@ -680,7 +840,7 @@ export class LoupeViewer extends HTMLElement {
                   How to test:
                 </span>
                 <span>1. Click the circular coral <strong>L icon</strong> in URL bar to activate.</span>
-                <span>2. Or <strong>right-click</strong> (press & hold or dual tap on trackpads) any image inside the page!</span>
+                <span>2. Or <strong>right-click</strong> (press & hold or dual tap on trackpads) any image or video inside the page!</span>
               </div>
             </div>
           </div>

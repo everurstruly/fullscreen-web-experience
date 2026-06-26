@@ -14,6 +14,14 @@ export class ZoomPanController {
   private startX: number = 0;
   private startY: number = 0;
   private onStateChange: (isZoomed: boolean) => void;
+  private isDisabled: boolean = false;
+
+  public setDisabled(disabled: boolean) {
+    this.isDisabled = disabled;
+    if (disabled) {
+      this.reset();
+    }
+  }
 
   constructor(
     container: HTMLElement,
@@ -46,6 +54,7 @@ export class ZoomPanController {
   }
 
   private handleWheel(e: WheelEvent) {
+    if (this.isDisabled) return;
     e.preventDefault();
     const zoomIntensity = 0.12;
 
@@ -69,6 +78,7 @@ export class ZoomPanController {
   }
 
   private handleMouseDown(e: MouseEvent) {
+    if (this.isDisabled) return;
     if (e.button !== 0) return; // Only left click
     if (this.scale <= 1.05) return; // No panning if fit-to-screen
     this.isPanning = true;
@@ -89,6 +99,7 @@ export class ZoomPanController {
   }
 
   private handleDoubleClick(e: MouseEvent) {
+    if (this.isDisabled) return;
     e.preventDefault();
     if (this.scale > 1.05) {
       this.reset();
@@ -115,6 +126,7 @@ export class ZoomPanController {
   private isTouching: boolean = false;
 
   private handleTouchStart(e: TouchEvent) {
+    if (this.isDisabled) return;
     if (e.touches.length === 2) {
       e.preventDefault();
       this.isTouching = true;

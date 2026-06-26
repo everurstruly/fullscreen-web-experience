@@ -4,7 +4,7 @@
  * filters icons/trackers, and sorts candidates by visual reading position.
  */
 
-export interface CandidateImage {
+export interface MediaItem {
   element: HTMLElement;
   src: string;
   highResSrc: string;
@@ -13,9 +13,13 @@ export interface CandidateImage {
   rect: DOMRect;
   width: number;
   height: number;
-  type: 'img' | 'picture' | 'input' | 'bg';
+  type: 'img' | 'picture' | 'input' | 'bg' | 'video';
+  mediaType: 'image' | 'video';
   caption?: string;
+  poster?: string;
 }
+
+export type CandidateImage = MediaItem;
 
 export interface ScanOptions {
   minWidth: number;
@@ -155,7 +159,7 @@ export function findCaption(el: HTMLElement): string {
  */
 function collectFromNode(
   node: Node,
-  images: Map<string, CandidateImage>,
+  mediaItems: Map<string, MediaItem>,
   options: ScanOptions
 ) {
   if (node.nodeType !== Node.ELEMENT_NODE) return;
@@ -166,18 +170,67 @@ function collectFromNode(
 
   const tagName = el.tagName.toLowerCase();
   let foundSrc = '';
-  let type: CandidateImage['type'] = 'img';
+  let type: MediaItem['type'] = 'img';
+  let mediaType: MediaItem['mediaType'] = 'image';
+  let posterUrl = '';
 
   if (tagName === 'img' && el instanceof HTMLImageElement) {
     foundSrc = el.currentSrc || el.src;
     type = 'img';
+    mediaType = 'image';
   } else if (tagName === 'input' && el instanceof HTMLInputElement && el.type === 'image') {
     foundSrc = el.src;
     type = 'input';
+    mediaType = 'image';
   } else if (tagName === 'picture') {
     const imgChild = el.querySelector('img');
     foundSrc = imgChild ? (imgChild.currentSrc || imgChild.src) : '';
     type = 'picture';
+    mediaType = 'image';
+  } else if (tagName === 'video' && el instanceof HTMLVideoElement) {
+    type = 'video';
+    mediaType = 'video';
+
+    // For video elements:
+    // - Retrieve the best available source URL by trying, in order: video.currentSrc (if non‑empty), video.src, or the src of the first <source> child element. Store this as the video’s canonical URL for matching and sidebar display.
+    let foundVideoSrc = '';
+    if (el.currentSrc && el.currentSrc.trim() !== '') {
+      foundVideoSrc = el.currentSrc;
+    } else if (el.src && el.src.trim() !== '') {
+      foundVideoSrc = el.src;
+    } else {
+      const firstSource = el.querySelector('source');
+      if (firstSource) {
+        foundVideoSrc = firstSource.getAttribute('src') || (firstSource as HTMLSourceElement).src || '';
+      }
+    }
+
+    // Secondary fallback for lazy-loaded attributes if the canonical sources are not found/set yet
+    if (!foundVideoSrc || !foundVideoSrc.trim()) {
+      const lazyVideoAttrs = ['data-src', 'data-video-src', 'data-original'];
+      for (const attr of lazyVideoAttrs) {
+        const val = el.getAttribute(attr);
+        if (val && val.trim()) {
+          foundVideoSrc = val.trim();
+          break;
+        }
+      }
+    }
+
+    foundSrc = foundVideoSrc;
+
+    // Resolve poster URL
+    let pUrl = el.getAttribute('poster') || el.poster || '';
+    const lazyPosterAttrs = ['data-poster', 'data-thumb', 'data-thumbnail'];
+    for (const attr of lazyPosterAttrs) {
+      if (!pUrl) {
+        const val = el.getAttribute(attr);
+        if (val) pUrl = val;
+      }
+    }
+    if (pUrl) {
+      posterUrl = resolveUrl(pUrl);
+    }
   } else {
     // Check if background image exists
     const bgImg = window.getComputedStyle(el).backgroundImage;
@@ -186,6 +239,7 @@ function collectFromNode(
       if (match && match[1]) {
         foundSrc = match[1];
         type = 'bg';
+        mediaType = 'image';
       }
     }
   }
@@ -194,23 +248,47 @@ function collectFromNode(
     const absoluteSrc = resolveUrl(foundSrc);
     if (absoluteSrc && !absoluteSrc.startsWith('data:image/svg')) { // skip basic inline UI SVGs
       const rect = el.getBoundingClientRect();
-      const width = rect.width || el.offsetWidth || (el as any).naturalWidth || 0;
-      const height = rect.height || el.offsetHeight || (el as any).naturalHeight || 0;
+      let width = rect.width || el.offsetWidth || (el as any).naturalWidth || (el as any).videoWidth || 0;
+      let height = rect.height || el.offsetHeight || (el as any).naturalHeight || (el as any).videoHeight || 0;
+
+      // Use the poster image as a fallback for minimum‑size filtering: if the <video> element itself has a zero or near‑zero rendered size, attempt to load the poster (via a temporary Image object) to obtain dimensions; if the poster has dimensions ≥ the minimum threshold, include the video. If no poster or can’t load it, fall back to a reasonable default dimension (e.g., 300×200) to avoid excluding videos that haven’t rendered yet, or skip the video if you prefer a conservative approach.
+      if (mediaType === 'video' && (width <= 10 || height <= 10)) {
+        let posterWidth = 0;
+        let posterHeight = 0;
+        if (posterUrl) {
+          const tempImg = new Image();
+          tempImg.src = posterUrl;
+          if (tempImg.naturalWidth > 0 && tempImg.naturalHeight > 0) {
+            posterWidth = tempImg.naturalWidth;
+            posterHeight = tempImg.naturalHeight;
+          }
+        }
+
+        if (posterWidth > 0 && posterHeight > 0) {
+          width = posterWidth;
+          height = posterHeight;
+        } else {
+          width = 300;
+          height = 200;
+        }
+      }
 
       const sizeMatches = options.includeSmall || (width >= options.minWidth && height >= options.minHeight);
 
-      if (sizeMatches && !images.has(absoluteSrc)) {
-        images.set(absoluteSrc, {
+      if (sizeMatches && !mediaItems.has(absoluteSrc)) {
+        mediaItems.set(absoluteSrc, {
           element: el,
           src: absoluteSrc,
-          highResSrc: findHighResSource(el) || absoluteSrc,
+          highResSrc: mediaType === 'video' ? absoluteSrc : (findHighResSource(el) || absoluteSrc),
           alt: el.getAttribute('alt') || '',
           title: el.getAttribute('title') || '',
           rect,
           width,
           height,
           type,
-          caption: findCaption(el)
+          mediaType,
+          caption: findCaption(el),
+          poster: posterUrl || undefined
         });
       }
     }
@@ -218,27 +296,27 @@ function collectFromNode(
 
   // Recurse into standard shadow roots
   if (el.shadowRoot) {
-    collectFromNode(el.shadowRoot, images, options);
+    collectFromNode(el.shadowRoot, mediaItems, options);
   }
 
   // Recurse into children
   const children = el.children;
   for (let i = 0; i < children.length; i++) {
-    collectFromNode(children[i], images, options);
+    collectFromNode(children[i], mediaItems, options);
   }
 }
 
 /**
- * Collects, filters, and sorts all qualifyable images on the page.
+ * Collects, filters, and sorts all qualifyable images and videos on the page.
  */
-export function scanImages(options: ScanOptions = { minWidth: 40, minHeight: 40, includeSmall: false }): CandidateImage[] {
-  const imagesMap = new Map<string, CandidateImage>();
+export function scanMedia(options: ScanOptions = { minWidth: 40, minHeight: 40, includeSmall: false }): MediaItem[] {
+  const mediaMap = new Map<string, MediaItem>();
 
   // 1. Scan from the document body
-  collectFromNode(document.body, imagesMap, options);
+  collectFromNode(document.body, mediaMap, options);
 
   // 2. Convert to array
-  const list = Array.from(imagesMap.values());
+  const list = Array.from(mediaMap.values());
 
   // 3. Sort by visual reading order (top-to-bottom, then left-to-right)
   list.sort((a, b) => {
@@ -258,4 +336,11 @@ export function scanImages(options: ScanOptions = { minWidth: 40, minHeight: 40,
   });
 
   return list;
+}
+
+/**
+ * Collects, filters, and sorts all qualifyable media on the page.
+ */
+export function scanImages(options: ScanOptions = { minWidth: 40, minHeight: 40, includeSmall: false }): MediaItem[] {
+  return scanMedia(options);
 }

@@ -18,6 +18,7 @@ export class LoupeViewer extends HTMLElement {
   private canvas!: HTMLElement;
   private imageContainer!: HTMLElement;
   private viewerImage!: HTMLImageElement;
+  private viewerVideo!: HTMLVideoElement;
   private lens!: HTMLElement;
   private lensClone!: HTMLImageElement;
   private topBar!: HTMLElement;
@@ -75,6 +76,7 @@ export class LoupeViewer extends HTMLElement {
           <div id="image-container" class="image-container">
             <div id="loupe-loader" class="loading-spinner"></div>
             <img id="viewer-image" class="viewer-image" alt="Visualizing..." />
+            <video id="viewer-video" class="viewer-video" controls style="display: none;"></video>
           </div>
 
           <!-- Magnifier Lens -->
@@ -172,6 +174,7 @@ export class LoupeViewer extends HTMLElement {
     this.canvas = this.shadow.getElementById('viewer-canvas')!;
     this.imageContainer = this.shadow.getElementById('image-container')!;
     this.viewerImage = this.shadow.getElementById('viewer-image')! as HTMLImageElement;
+    this.viewerVideo = this.shadow.getElementById('viewer-video')! as HTMLVideoElement;
     this.lens = this.shadow.getElementById('magnifier-lens')!;
     this.lensClone = this.shadow.getElementById('magnifier-clone')! as HTMLImageElement;
     this.topBar = this.shadow.getElementById('top-bar')!;
@@ -233,17 +236,17 @@ export class LoupeViewer extends HTMLElement {
   }
 
   /**
-   * Render the currently indexed image with high-res details, updating preloading queues.
+   * Render the currently indexed image or video with high-res details, updating preloading queues.
    */
   private async renderCurrentImage() {
     if (this.images.length === 0) {
       this.viewerImage.style.display = 'none';
-      this.showToast('No images found on page.');
+      this.viewerVideo.style.display = 'none';
+      this.showToast('No images or videos found on page.');
       return;
     }
 
     // Cancel any active high-resolution loader from a previous slide.
-    // This stops outstanding network requests, preventing connection pool choking.
     if (this.activeHighResLoader) {
       this.activeHighResLoader.onload = null;
       this.activeHighResLoader.onerror = null;
@@ -251,49 +254,81 @@ export class LoupeViewer extends HTMLElement {
       this.activeHighResLoader = null;
     }
 
-    const img = this.images[this.currentIndex];
-    this.viewerImage.style.display = 'block';
-    
-    // Reset rotation for new image
-    this.updateRotation(0);
-    
-    // Set preview source for an instant visual response at full opacity
-    this.viewerImage.src = img.src;
-    this.viewerImage.style.opacity = '1';
+    // Stop and clear previous video playback to prevent background audio playing
+    this.viewerVideo.pause();
+    this.viewerVideo.src = '';
+    this.viewerVideo.load();
 
-    // Show loading spinner if higher resolution source is not loaded/matched
-    const needsLoader = img.src !== img.highResSrc;
-    if (needsLoader) {
-      this.loader.classList.add('visible');
-    } else {
-      this.loader.classList.remove('visible');
+    const img = this.images[this.currentIndex];
+    const isVideo = img.mediaType === 'video';
+
+    // Disable magnifier and zoom-pan if the active element is a video
+    this.zoomPan.setDisabled(isVideo);
+    this.magnifier.setDisabled(isVideo);
+
+    const magnifyBtn = this.shadow.getElementById('toggle-magnify-btn');
+    if (magnifyBtn) {
+      magnifyBtn.style.display = isVideo ? 'none' : 'block';
     }
 
-    // Load actual high-resolution source asynchronously
-    const highRes = new Image();
-    this.activeHighResLoader = highRes;
-    highRes.src = img.highResSrc;
+    // Reset rotation for new media item
+    this.updateRotation(0);
 
-    highRes.onload = () => {
-      // Ensure we only update if this loaded image still matches the current active index/loader
-      if (this.activeHighResLoader === highRes) {
-        this.viewerImage.src = img.highResSrc;
+    if (isVideo) {
+      this.viewerImage.style.display = 'none';
+      this.viewerVideo.style.display = 'block';
+      this.loader.classList.remove('visible');
+
+      this.viewerVideo.src = img.src;
+      this.viewerVideo.controls = true;
+      if (this.mode === 'fullscreen') {
+        this.viewerVideo.setAttribute('controlsList', 'nofullscreen');
+      } else {
+        this.viewerVideo.removeAttribute('controlsList');
+      }
+      this.viewerVideo.load();
+    } else {
+      this.viewerVideo.style.display = 'none';
+      this.viewerImage.style.display = 'block';
+
+      // Set preview source for an instant visual response at full opacity
+      this.viewerImage.src = img.src;
+      this.viewerImage.style.opacity = '1';
+
+      // Show loading spinner if higher resolution source is not loaded/matched
+      const needsLoader = img.src !== img.highResSrc;
+      if (needsLoader) {
+        this.loader.classList.add('visible');
+      } else {
         this.loader.classList.remove('visible');
-        this.activeHighResLoader = null;
+      }
 
-        // Re-align magnifier lens if currently active
-        if (this.isMagnifierActiveState && !this.zoomPan.getIsZoomed()) {
-          this.magnifier.activate(img.highResSrc, this.magnifierZoom);
+      // Load actual high-resolution source asynchronously
+      const highRes = new Image();
+      this.activeHighResLoader = highRes;
+      highRes.src = img.highResSrc;
+
+      highRes.onload = () => {
+        // Ensure we only update if this loaded image still matches the current active index/loader
+        if (this.activeHighResLoader === highRes) {
+          this.viewerImage.src = img.highResSrc;
+          this.loader.classList.remove('visible');
+          this.activeHighResLoader = null;
+
+          // Re-align magnifier lens if currently active
+          if (this.isMagnifierActiveState && !this.zoomPan.getIsZoomed()) {
+            this.magnifier.activate(img.highResSrc, this.magnifierZoom);
+          }
         }
-      }
-    };
+      };
 
-    highRes.onerror = () => {
-      if (this.activeHighResLoader === highRes) {
-        this.loader.classList.remove('visible');
-        this.activeHighResLoader = null;
-      }
-    };
+      highRes.onerror = () => {
+        if (this.activeHighResLoader === highRes) {
+          this.loader.classList.remove('visible');
+          this.activeHighResLoader = null;
+        }
+      };
+    }
 
     // Update UI counters
     const indexPill = this.shadow.getElementById('top-bar-index')!;
@@ -314,9 +349,23 @@ export class LoupeViewer extends HTMLElement {
     this.zoomPan.reset();
 
     // Trigger asynchronous metadata extraction for the context sidebar
-    const context = await extractImageContext(img.element, img.highResSrc);
+    const context = await extractImageContext(isVideo ? this.viewerVideo : img.element, img.highResSrc);
     this.sidebar.innerHTML = createSidebarDOM(context, () => this.toggleSidebar(false));
     this.bindSidebarActions(context);
+
+    // If metadata loads asynchronously later, listen on the loadedmetadata event
+    if (isVideo) {
+      const onMetadataLoaded = async () => {
+        const updatedContext = await extractImageContext(this.viewerVideo, img.highResSrc);
+        this.sidebar.innerHTML = createSidebarDOM(updatedContext, () => this.toggleSidebar(false));
+        this.bindSidebarActions(updatedContext);
+      };
+      if (this.viewerVideo.readyState >= 1) {
+        onMetadataLoaded();
+      } else {
+        this.viewerVideo.addEventListener('loadedmetadata', onMetadataLoaded, { once: true });
+      }
+    }
 
     // Update visual dot active classes
     const dots = this.bottomProgress.querySelectorAll('.progress-dot');
@@ -491,10 +540,12 @@ export class LoupeViewer extends HTMLElement {
       this.mode = 'fullscreen';
       btn.classList.add('active');
       this.enterBrowserFullscreen();
+      this.viewerVideo.setAttribute('controlsList', 'nofullscreen');
     } else {
       this.mode = 'overlay';
       btn.classList.remove('active');
       this.exitBrowserFullscreen();
+      this.viewerVideo.removeAttribute('controlsList');
     }
     this.saveSettings();
   }
@@ -577,6 +628,7 @@ export class LoupeViewer extends HTMLElement {
     // Apply rotation transforms
     this.zoomPan.setRotation(this.currentRotation);
     this.magnifier.setRotation(this.currentRotation);
+    this.viewerVideo.style.transform = `rotate(${this.currentRotation}deg)`;
 
     // Sync HTML Range Slider
     const slider = this.shadow.getElementById('rotation-slider') as HTMLInputElement;
@@ -706,6 +758,7 @@ export class LoupeViewer extends HTMLElement {
       if (document.fullscreenElement !== this && this.mode === 'fullscreen') {
         this.mode = 'overlay';
         this.shadow.getElementById('toggle-mode-btn')?.classList.remove('active');
+        this.viewerVideo.removeAttribute('controlsList');
         this.showControlsTemporarily();
       }
     });

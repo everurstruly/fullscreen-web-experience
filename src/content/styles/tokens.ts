@@ -80,6 +80,14 @@ export const LOUPE_STYLES = `
   pointer-events: none;
 }
 
+.viewer-video {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: 16px;
+  transition: opacity 0.2s var(--spring-in);
+}
+
 /* Magnifier Lens */
 .magnifier-lens {
   position: absolute;

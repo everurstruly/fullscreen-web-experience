@@ -60,7 +60,7 @@ export function triggerViewer(startUrl?: string) {
     const images = scanImages({ minWidth: minW, minHeight: minH, includeSmall: inclS });
 
     if (images.length === 0) {
-      alert('Loupe: No images of qualifying size found on this page.');
+      alert('Loupe: No images or videos of qualifying size found on this page.');
       return;
     }
 

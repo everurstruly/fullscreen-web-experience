@@ -8,6 +8,10 @@ export interface ImageContext {
   dimensions?: string;
   fileSize?: string;
   altText?: string;
+  duration?: string;
+  poster?: string;
+  width?: number;
+  height?: number;
   customDetails?: Record<string, string>;
 }
 
