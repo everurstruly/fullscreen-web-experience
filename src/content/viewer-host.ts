@@ -85,10 +85,10 @@ export class LoupeViewer extends HTMLElement {
           </div>
 
           <!-- Navigation Chevrons -->
-          <div id="nav-left" class="nav-chevron glass-panel nav-left" title="Previous Image (Left Arrow)">
+          <div id="nav-left" class="nav-chevron glass-panel nav-left" title="Previous Image (Left Arrow)" role="button" aria-label="Previous Image" tabindex="0">
             <svg width="24" height="24" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"></polyline></svg>
           </div>
-          <div id="nav-right" class="nav-chevron glass-panel nav-right" title="Next Image (Right Arrow)">
+          <div id="nav-right" class="nav-chevron glass-panel nav-right" title="Next Image (Right Arrow)" role="button" aria-label="Next Image" tabindex="0">
             <svg width="24" height="24" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"></polyline></svg>
           </div>
         </div>
@@ -97,27 +97,27 @@ export class LoupeViewer extends HTMLElement {
         <div id="top-bar" class="top-bar glass-panel">
           <span id="top-bar-index" class="top-bar-item index">0/0</span>
           
-          <button id="toggle-mode-btn" class="icon-btn" title="Toggle Fullscreen (Mode A) / Overlay (Mode B)">
+          <button id="toggle-mode-btn" class="icon-btn" title="Toggle Fullscreen (Mode A) / Overlay (Mode B)" aria-label="Toggle Mode A Fullscreen or Mode B Overlay">
             <svg width="18" height="18" viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path></svg>
           </button>
 
-          <button id="toggle-magnify-btn" class="icon-btn" title="Toggle Magnifier Lens (M)">
+          <button id="toggle-magnify-btn" class="icon-btn" title="Toggle Magnifier Lens (M)" aria-label="Toggle Magnifier Lens">
             <svg width="18" height="18" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
           </button>
 
-          <button id="toggle-rotate-btn" class="icon-btn" title="Toggle Rotate Controls (R)">
+          <button id="toggle-rotate-btn" class="icon-btn" title="Toggle Rotate Controls (R)" aria-label="Toggle Precision Rotate Controls">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1 .57-8.38l-5.67-5.67"/>
             </svg>
           </button>
 
-          <button id="toggle-sidebar-btn" class="icon-btn" title="Toggle Sidebar Inspector (I)">
+          <button id="toggle-sidebar-btn" class="icon-btn" title="Toggle Sidebar Inspector (I)" aria-label="Toggle Sidebar Media Inspector">
             <svg width="18" height="18" viewBox="0 0 24 24"><line x1="4" y1="21" x2="4" y2="14"></line><line x1="4" y1="10" x2="4" y2="3"></line><line x1="12" y1="21" x2="12" y2="12"></line><line x1="12" y1="8" x2="12" y2="3"></line><line x1="20" y1="21" x2="20" y2="16"></line><line x1="20" y1="12" x2="20" y2="3"></line><line x1="1" y1="14" x2="7" y2="14"></line><line x1="9" y1="8" x2="15" y2="8"></line><line x1="17" y1="16" x2="23" y2="16"></line></svg>
           </button>
         </div>
 
         <!-- Floating corner close button -->
-        <button id="close-corner-btn" class="icon-btn close-corner-btn glass-panel" title="Exit Loupe (Esc)" style="width: 44px; height: 44px; border-radius: 50%;">
+        <button id="close-corner-btn" class="icon-btn close-corner-btn glass-panel" title="Exit Loupe (Esc)" style="width: 44px; height: 44px; border-radius: 50%;" aria-label="Exit Loupe Viewer">
           <svg width="22" height="22" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
         </button>
 
@@ -136,9 +136,8 @@ export class LoupeViewer extends HTMLElement {
             <span class="rotation-title">Precision Rotation</span>
             <span id="rotation-value" class="rotation-value">0°</span>
           </div>
-          
-          <div class="rotation-controls-row">
-            <button id="rotate-ccw-btn" class="rotate-btn" title="Rotate 90° CCW">
+                    <div class="rotation-controls-row">
+            <button id="rotate-ccw-btn" class="rotate-btn" title="Rotate 90° CCW" aria-label="Rotate image 90 degrees counter-clockwise">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M2.5 2v6h6"/>
                 <path d="M2.66 15.57a10 10 0 1 0-.57-8.38l5.67-5.67"/>
@@ -148,11 +147,11 @@ export class LoupeViewer extends HTMLElement {
             
             <div class="ruler-container" id="ruler-container">
               <div class="ruler-track" id="ruler-track"></div>
-              <input type="range" id="rotation-slider" class="rotation-slider" min="-180" max="180" value="0" step="1" />
+              <input type="range" id="rotation-slider" class="rotation-slider" min="-180" max="180" value="0" step="1" aria-label="Fine rotation slider" />
               <div class="ruler-center-line"></div>
             </div>
 
-            <button id="rotate-cw-btn" class="rotate-btn" title="Rotate 90° CW">
+            <button id="rotate-cw-btn" class="rotate-btn" title="Rotate 90° CW" aria-label="Rotate image 90 degrees clockwise">
               <span>+90°</span>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M21.5 2v6h-6"/>
@@ -161,7 +160,7 @@ export class LoupeViewer extends HTMLElement {
             </button>
           </div>
 
-          <button id="rotate-reset-btn" class="rotate-reset-btn" title="Reset Rotation to 0°">Reset to 0°</button>
+          <button id="rotate-reset-btn" class="rotate-reset-btn" title="Reset Rotation to 0°" aria-label="Reset image rotation to 0 degrees">Reset to 0°</button>
         </div>
 
         <!-- Mini Toast Alert -->

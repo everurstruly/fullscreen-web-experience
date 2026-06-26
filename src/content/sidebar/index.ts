@@ -93,7 +93,7 @@ export function createSidebarDOM(context: ImageContext, onClose: () => void): st
   return `
     <div class="sidebar-header">
       <span class="sidebar-title">${isVideo ? 'Video Inspector' : 'Image Inspector'}</span>
-      <button id="sidebar-close-btn" class="icon-btn" title="Close inspector">
+      <button id="sidebar-close-btn" class="icon-btn" title="Close inspector" aria-label="Close media inspector sidebar">
         <svg width="20" height="20" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
       </button>
     </div>
@@ -160,15 +160,15 @@ export function createSidebarDOM(context: ImageContext, onClose: () => void): st
       ${customItems}
 
       <div class="sidebar-actions">
-        <button id="sidebar-btn-copy" class="action-btn">
+        <button id="sidebar-btn-copy" class="action-btn" aria-label="${isVideo ? 'Copy Video URL' : 'Copy Image URL'} to clipboard">
           <svg width="16" height="16" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
           ${isVideo ? 'Copy Video URL' : 'Copy Image URL'}
         </button>
-        <button id="sidebar-btn-tab" class="action-btn">
+        <button id="sidebar-btn-tab" class="action-btn" aria-label="Open original media in new browser tab">
           <svg width="16" height="16" viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
           Open in New Tab
         </button>
-        <a id="sidebar-btn-dl" class="action-btn primary" href="${context.sourceUrl}" download="${isVideo ? 'loupe-video.mp4' : 'loupe-image.jpg'}">
+        <a id="sidebar-btn-dl" class="action-btn primary" href="${context.sourceUrl}" download="${isVideo ? 'loupe-video.mp4' : 'loupe-image.jpg'}" aria-label="${isVideo ? 'Download original video file' : 'Download original image file'}">
           <svg width="16" height="16" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
           ${isVideo ? 'Download Video' : 'Download Original'}
         </a>
