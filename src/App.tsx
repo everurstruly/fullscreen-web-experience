@@ -20,7 +20,8 @@ import {
   X,
   Copy,
   FolderOpen,
-  Keyboard
+  Keyboard,
+  Search
 } from 'lucide-react';
 import Simulators from './components/Simulators';
 import { triggerViewer } from './content/index';
@@ -73,6 +74,7 @@ export default function App() {
   });
 
   const [isRecordingShortcut, setIsRecordingShortcut] = useState(false);
+  const [showPopupDropdown, setShowPopupDropdown] = useState(false);
 
   const [infiniteImages, setInfiniteImages] = useState<string[]>([
     'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?auto=format&fit=crop&w=600&q=80',
@@ -776,15 +778,148 @@ export class LoupeViewer extends HTMLElement {
                 </span>
                 
                 {/* Simulated Chrome Extension toolbar button */}
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 relative">
                   <span className="text-[10px] bg-zinc-800 text-zinc-500 rounded px-1 text-[9px] font-mono">https</span>
                   <button 
-                    onClick={() => triggerViewer()}
-                    className="w-5 h-5 bg-[#ff5f40] hover:bg-orange-600 rounded-full flex items-center justify-center text-white cursor-pointer transition shadow shadow-orange-500/40"
-                    title="Click Extension Icon (Trigger Loupe)"
+                    onClick={() => setShowPopupDropdown(!showPopupDropdown)}
+                    className={`w-5 h-5 rounded-full flex items-center justify-center text-white cursor-pointer transition shadow ${
+                      showPopupDropdown ? 'bg-orange-600 ring-2 ring-orange-500/50' : 'bg-[#ff5f40] hover:bg-orange-600 shadow-orange-500/40'
+                    }`}
+                    title="Click Extension Icon to open Settings Popup"
                   >
                     <span className="font-black text-[9px]">L</span>
                   </button>
+
+                  {/* Simulated Chrome Extension Popup Dropdown (popup.html) */}
+                  {showPopupDropdown && (
+                    <div className="absolute top-8 right-0 w-80 bg-zinc-950 border border-zinc-800 rounded-xl shadow-[0_10px_30px_rgba(0,0,0,0.8)] p-4 flex flex-col gap-3.5 text-zinc-100 z-[9999] animate-fade-in animate-duration-150">
+                      <div className="flex items-center justify-between border-b border-zinc-800 pb-2.5">
+                        <div className="flex items-center gap-2">
+                          <div className="w-2.5 h-2.5 bg-[#ff5f40] rounded-full shadow-[0_0_8px_#ff5f40] animate-pulse"></div>
+                          <span className="font-bold text-xs tracking-wide">Loupe Settings</span>
+                        </div>
+                        <span className="text-[9px] text-zinc-500 font-mono">Manifest V3 Popup</span>
+                      </div>
+
+                      {/* Launch Mode Selection */}
+                      <div className="bg-zinc-900/40 border border-zinc-800/80 rounded-lg p-2.5 flex flex-col gap-1.5">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] text-zinc-400 font-medium">Default Mode</span>
+                          <select 
+                            value={settings.mode}
+                            onChange={(e) => handleSettingChange('mode', e.target.value)}
+                            className="bg-black border border-zinc-800 rounded text-[11px] py-1 px-1.5 text-zinc-200 outline-none focus:border-[#ff5f40] cursor-pointer"
+                          >
+                            <option value="overlay">Rich Overlay (B)</option>
+                            <option value="fullscreen">Minimal Fullscreen (A)</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      {/* Magnifier scale factor range slider */}
+                      <div className="bg-zinc-900/40 border border-zinc-800/80 rounded-lg p-2.5 flex flex-col gap-1.5">
+                        <div className="flex justify-between items-center text-[11px]">
+                          <span className="text-zinc-400 font-medium">Magnifier Scale</span>
+                          <span className="text-[#ff5f40] font-mono font-bold">{settings.magnifierZoom}x</span>
+                        </div>
+                        <input 
+                          type="range" 
+                          min="1.5" 
+                          max="5.0" 
+                          step="0.5"
+                          value={settings.magnifierZoom}
+                          onChange={(e) => handleSettingChange('magnifierZoom', parseFloat(e.target.value))}
+                          className="w-full h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-[#ff5f40]"
+                        />
+                      </div>
+
+                      {/* Minimum dimensions filtering threshold settings */}
+                      <div className="bg-zinc-900/40 border border-zinc-800/80 rounded-lg p-2.5 flex flex-col gap-2.5">
+                        <div className="flex justify-between items-center">
+                          <span className="text-[11px] text-zinc-400 font-medium">Min Size Threshold</span>
+                          <div className="flex items-center gap-1">
+                            <input 
+                              type="number"
+                              value={settings.minWidth}
+                              onChange={(e) => handleSettingChange('minWidth', parseInt(e.target.value) || 0)}
+                              className="w-10 bg-black border border-zinc-800 rounded text-center text-[10px] py-0.5 text-zinc-200 outline-none focus:border-[#ff5f40]"
+                            />
+                            <span className="text-zinc-500 text-[9px]">x</span>
+                            <input 
+                              type="number"
+                              value={settings.minHeight}
+                              onChange={(e) => handleSettingChange('minHeight', parseInt(e.target.value) || 0)}
+                              className="w-10 bg-black border border-zinc-800 rounded text-center text-[10px] py-0.5 text-zinc-200 outline-none focus:border-[#ff5f40]"
+                            />
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] text-zinc-400 font-medium">Include Icons/Small UI</span>
+                          <input 
+                            type="checkbox"
+                            checked={settings.includeSmall}
+                            onChange={(e) => handleSettingChange('includeSmall', e.target.checked)}
+                            className="w-3.5 h-3.5 rounded accent-[#ff5f40] cursor-pointer"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Recording of shortcut key sequence */}
+                      <div className="bg-zinc-900/40 border border-zinc-800/80 rounded-lg p-2.5 flex flex-col gap-1.5">
+                        <span className="text-[11px] text-zinc-400 font-medium">Keyboard Shortcut</span>
+                        <div className="flex items-center gap-1.5">
+                          <div 
+                            tabIndex={0}
+                            onKeyDown={handleShortcutRecording}
+                            className={`flex-1 border text-center rounded py-1 text-[10px] font-mono font-bold cursor-pointer transition select-none outline-none ${
+                              isRecordingShortcut 
+                                ? 'bg-orange-500/10 border-[#ff5f40] text-[#ff5f40] animate-pulse' 
+                                : 'bg-black border-zinc-800 text-zinc-200 hover:border-zinc-700 focus:border-[#ff5f40]'
+                            }`}
+                            onClick={() => setIsRecordingShortcut(true)}
+                            onBlur={() => setIsRecordingShortcut(false)}
+                            title="Click to record hotkey"
+                          >
+                            {isRecordingShortcut ? 'Press keys...' : settings.shortcut}
+                          </div>
+                          
+                          {!isRecordingShortcut && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleSettingChange('shortcut', 'Ctrl+Shift+F');
+                              }}
+                              className="text-[9px] text-zinc-500 hover:text-[#ff5f40] px-1.5 py-1 rounded border border-zinc-800 bg-black font-bold transition"
+                            >
+                              Reset
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Main Launch Action trigger button */}
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setShowPopupDropdown(false);
+                          triggerViewer();
+                        }}
+                        className="w-full bg-[#ff5f40] hover:bg-orange-600 text-white text-[11px] font-bold py-2 rounded-lg transition flex items-center justify-center gap-1.5 shadow shadow-orange-500/20"
+                      >
+                        <Search size={11} strokeWidth={2.5} />
+                        Trigger Loupe on Tab
+                      </button>
+
+                      {/* Sync indicators/footer */}
+                      <div className="flex items-center justify-between text-[9px] text-zinc-500 font-mono border-t border-zinc-900 pt-2">
+                        <span>Hotkey: {settings.shortcut}</span>
+                        <span className="text-emerald-500 font-semibold flex items-center gap-0.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span>
+                          Synced to Local Storage
+                        </span>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -839,7 +974,7 @@ export class LoupeViewer extends HTMLElement {
                   <Play size={10} className="text-[#ff5f40]" />
                   How to test:
                 </span>
-                <span>1. Click the circular coral <strong>L icon</strong> in URL bar to activate.</span>
+                <span>1. Click the circular coral <strong>L icon</strong> in the URL bar to open the <strong>Chrome Extension Popup</strong>, configure your settings, and trigger Loupe!</span>
                 <span>2. Or <strong>right-click</strong> (press & hold or dual tap on trackpads) any image or video inside the page!</span>
               </div>
             </div>
