@@ -1,0 +1,38 @@
+{
+  "manifest_version": 3,
+  "name": "Loupe — Universal Fullscreen Image Viewer",
+  "version": "1.0.0",
+  "description": "Open any image on any website in a responsive, glassmorphic fullscreen viewer. Support Zoom/Pan, high-res Magnifier and Sidebar image metadata extractors.",
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage",
+    "contextMenus"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "commands": {
+    "trigger_loupe": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+F",
+        "mac": "Command+Shift+F"
+      },
+      "description": "Open Loupe on the current tab"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}

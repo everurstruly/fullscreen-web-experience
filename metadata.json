@@ -1,0 +1,6 @@
+{
+  "name": "Loupe Universal Image Viewer",
+  "description": "An interactive testing playground and extension generator for the Loupe Universal Fullscreen Image Viewer Chrome Extension.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
