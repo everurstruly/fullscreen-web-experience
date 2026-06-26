@@ -104,10 +104,18 @@ export class MagnifierController {
     }
   }
 
+  private rotation: number = 0;
+
+  public setRotation(degrees: number) {
+    this.rotation = degrees;
+    this.clone.style.transform = `rotate(${this.rotation}deg)`;
+  }
+
   public activate(highResSrc: string, zoomFactor: number = 2.5) {
     this.isActive = true;
     this.zoomFactor = zoomFactor;
     this.clone.src = highResSrc;
+    this.clone.style.transform = `rotate(${this.rotation}deg)`;
     this.lens.style.display = 'block';
   }
 

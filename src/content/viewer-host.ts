@@ -39,6 +39,8 @@ export class LoupeViewer extends HTMLElement {
   private isControlsVisible: boolean = true;
   private controlsTimeoutId: number | null = null;
   private isMagnifierActiveState: boolean = false;
+  private rotationOpen: boolean = false;
+  private currentRotation: number = 0;
 
   constructor() {
     super();
@@ -101,6 +103,12 @@ export class LoupeViewer extends HTMLElement {
             <svg width="18" height="18" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
           </button>
 
+          <button id="toggle-rotate-btn" class="icon-btn" title="Toggle Rotate Controls (R)">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1 .57-8.38l-5.67-5.67"/>
+            </svg>
+          </button>
+
           <button id="toggle-sidebar-btn" class="icon-btn" title="Toggle Sidebar Inspector (I)">
             <svg width="18" height="18" viewBox="0 0 24 24"><line x1="4" y1="21" x2="4" y2="14"></line><line x1="4" y1="10" x2="4" y2="3"></line><line x1="12" y1="21" x2="12" y2="12"></line><line x1="12" y1="8" x2="12" y2="3"></line><line x1="20" y1="21" x2="20" y2="16"></line><line x1="20" y1="12" x2="20" y2="3"></line><line x1="1" y1="14" x2="7" y2="14"></line><line x1="9" y1="8" x2="15" y2="8"></line><line x1="17" y1="16" x2="23" y2="16"></line></svg>
           </button>
@@ -119,6 +127,40 @@ export class LoupeViewer extends HTMLElement {
 
         <!-- Bottom Dot Progress Indicators -->
         <div id="bottom-progress" class="bottom-progress"></div>
+
+        <!-- Dynamic Rotation Panel -->
+        <div id="rotation-panel" class="rotation-panel glass-panel">
+          <div class="rotation-header">
+            <span class="rotation-title">Precision Rotation</span>
+            <span id="rotation-value" class="rotation-value">0°</span>
+          </div>
+          
+          <div class="rotation-controls-row">
+            <button id="rotate-ccw-btn" class="rotate-btn" title="Rotate 90° CCW">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M2.5 2v6h6"/>
+                <path d="M2.66 15.57a10 10 0 1 0-.57-8.38l5.67-5.67"/>
+              </svg>
+              <span>-90°</span>
+            </button>
+            
+            <div class="ruler-container" id="ruler-container">
+              <div class="ruler-track" id="ruler-track"></div>
+              <input type="range" id="rotation-slider" class="rotation-slider" min="-180" max="180" value="0" step="1" />
+              <div class="ruler-center-line"></div>
+            </div>
+
+            <button id="rotate-cw-btn" class="rotate-btn" title="Rotate 90° CW">
+              <span>+90°</span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21.5 2v6h-6"/>
+                <path d="M21.34 15.57a10 10 0 1 1 .57-8.38l-5.67-5.67"/>
+              </svg>
+            </button>
+          </div>
+
+          <button id="rotate-reset-btn" class="rotate-reset-btn" title="Reset Rotation to 0°">Reset to 0°</button>
+        </div>
 
         <!-- Mini Toast Alert -->
         <div id="toast-msg" class="toast-msg glass-panel">Linked!</div>
@@ -211,6 +253,9 @@ export class LoupeViewer extends HTMLElement {
 
     const img = this.images[this.currentIndex];
     this.viewerImage.style.display = 'block';
+    
+    // Reset rotation for new image
+    this.updateRotation(0);
     
     // Set preview source for an instant visual response at full opacity
     this.viewerImage.src = img.src;
@@ -347,6 +392,34 @@ export class LoupeViewer extends HTMLElement {
       this.toggleMagnifier();
     });
 
+    // Toggle Rotate Action
+    this.shadow.getElementById('toggle-rotate-btn')?.addEventListener('click', () => {
+      this.toggleRotationPanel();
+    });
+
+    // Rotate CCW Action (-90)
+    this.shadow.getElementById('rotate-ccw-btn')?.addEventListener('click', () => {
+      this.updateRotation(this.currentRotation - 90);
+    });
+
+    // Rotate CW Action (+90)
+    this.shadow.getElementById('rotate-cw-btn')?.addEventListener('click', () => {
+      this.updateRotation(this.currentRotation + 90);
+    });
+
+    // Reset Rotation Action
+    this.shadow.getElementById('rotate-reset-btn')?.addEventListener('click', () => {
+      this.updateRotation(0);
+    });
+
+    // Precision Slider Input Action
+    const slider = this.shadow.getElementById('rotation-slider') as HTMLInputElement;
+    if (slider) {
+      slider.addEventListener('input', () => {
+        this.updateRotation(parseFloat(slider.value));
+      });
+    }
+
     // Swipe gestures
     let touchStartX = 0;
     this.canvas.addEventListener('touchstart', (e) => {
@@ -465,6 +538,97 @@ export class LoupeViewer extends HTMLElement {
     } else {
       btn.classList.remove('active');
       this.magnifier.deactivate();
+    }
+  }
+
+  /**
+   * Toggle precision rotation panel controls.
+   */
+  private toggleRotationPanel(forceState?: boolean) {
+    this.rotationOpen = forceState !== undefined ? forceState : !this.rotationOpen;
+    const panel = this.shadow.getElementById('rotation-panel')!;
+    const btn = this.shadow.getElementById('toggle-rotate-btn')!;
+
+    if (this.rotationOpen) {
+      panel.classList.add('active');
+      btn.classList.add('active');
+      this.showControlsTemporarily();
+      this.renderRulerTicks();
+      // Brief deferral allows the DOM to render so getBoundingClientRect() returns valid values
+      setTimeout(() => {
+        this.updateRotation(this.currentRotation);
+      }, 50);
+    } else {
+      panel.classList.remove('active');
+      btn.classList.remove('active');
+    }
+  }
+
+  /**
+   * Synchronize current rotation angle across the main image, magnifier lens, numeric readout, and horizontal dial ticks.
+   */
+  private updateRotation(deg: number) {
+    let normalized = deg;
+    while (normalized > 180) normalized -= 360;
+    while (normalized < -180) normalized += 360;
+
+    this.currentRotation = normalized;
+
+    // Apply rotation transforms
+    this.zoomPan.setRotation(this.currentRotation);
+    this.magnifier.setRotation(this.currentRotation);
+
+    // Sync HTML Range Slider
+    const slider = this.shadow.getElementById('rotation-slider') as HTMLInputElement;
+    if (slider) {
+      slider.value = String(Math.round(this.currentRotation));
+    }
+
+    // Sync Digital Display Value
+    const valDisplay = this.shadow.getElementById('rotation-value');
+    if (valDisplay) {
+      valDisplay.textContent = `${Math.round(this.currentRotation)}°`;
+    }
+
+    // Translate horizontal ruler ticks
+    const track = this.shadow.getElementById('ruler-track');
+    const container = this.shadow.getElementById('ruler-container');
+    if (track && container) {
+      const containerWidth = container.getBoundingClientRect().width || 220;
+      const centerOffset = containerWidth / 2;
+      const pxPerDegree = 2; // match scale tracks
+      const leftPos = (this.currentRotation + 180) * pxPerDegree;
+      const tx = centerOffset - leftPos;
+      track.style.transform = `translateX(${tx}px)`;
+    }
+  }
+
+  /**
+   * Programmatically render precise horizontal measurement tick marks.
+   */
+  private renderRulerTicks() {
+    const track = this.shadow.getElementById('ruler-track');
+    if (!track) return;
+    track.innerHTML = '';
+
+    const pxPerDegree = 2;
+    for (let deg = -180; deg <= 180; deg += 10) {
+      const tick = document.createElement('div');
+      tick.className = 'ruler-tick';
+
+      if (deg % 90 === 0) {
+        tick.classList.add('major');
+        const label = document.createElement('span');
+        label.className = 'ruler-label';
+        label.textContent = `${deg}°`;
+        tick.appendChild(label);
+      } else if (deg % 30 === 0) {
+        tick.classList.add('medium');
+      }
+
+      const leftPos = (deg + 180) * pxPerDegree;
+      tick.style.left = `${leftPos}px`;
+      track.appendChild(tick);
     }
   }
 

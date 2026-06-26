@@ -444,4 +444,186 @@ svg {
 @keyframes loupe-spin {
   to { transform: rotate(360deg); }
 }
+
+/* Elegant Rotation Panel & Horizontal Measurement Dial */
+.rotation-panel {
+  position: absolute;
+  bottom: 24px;
+  left: 50%;
+  transform: translate(-50%, 120px);
+  width: 440px;
+  max-width: 90%;
+  padding: 14px 20px;
+  border-radius: 16px;
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.6);
+  z-index: 1010;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  opacity: 0;
+  pointer-events: none;
+  transition: transform 0.4s var(--spring-in), opacity 0.3s var(--spring-in);
+}
+
+.rotation-panel.active {
+  transform: translate(-50%, 0);
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.rotation-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.rotation-title {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-secondary);
+  font-weight: 700;
+}
+
+.rotation-value {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent-color);
+  font-family: monospace;
+  background: rgba(255, 95, 64, 0.1);
+  padding: 2px 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 95, 64, 0.2);
+}
+
+.rotation-controls-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+}
+
+.rotate-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-light);
+  color: var(--text-primary);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.rotate-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.2);
+  transform: translateY(-1px);
+}
+
+.rotate-btn:active {
+  transform: translateY(1px);
+}
+
+/* Horizontal Measurement Ruler Container */
+.ruler-container {
+  flex: 1;
+  position: relative;
+  height: 40px;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  overflow: hidden;
+  mask-image: linear-gradient(to right, transparent, white 20%, white 80%, transparent);
+  -webkit-mask-image: linear-gradient(to right, transparent, #fff 20%, #fff 80%, transparent);
+}
+
+.ruler-track {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 1000px;
+  pointer-events: none;
+}
+
+.ruler-tick {
+  position: absolute;
+  bottom: 0;
+  width: 1px;
+  background: rgba(255, 255, 255, 0.2);
+  height: 8px;
+}
+
+.ruler-tick.medium {
+  height: 12px;
+  background: rgba(255, 255, 255, 0.4);
+}
+
+.ruler-tick.major {
+  height: 18px;
+  background: var(--text-primary);
+  width: 1.5px;
+}
+
+.ruler-label {
+  position: absolute;
+  bottom: 20px;
+  transform: translateX(-50%);
+  font-size: 8px;
+  color: var(--text-secondary);
+  font-family: monospace;
+  white-space: nowrap;
+}
+
+.ruler-center-line {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: 2px;
+  height: 100%;
+  background: var(--accent-color);
+  transform: translateX(-50%);
+  pointer-events: none;
+  z-index: 10;
+  box-shadow: 0 0 8px var(--accent-color);
+}
+
+/* Overlaid Invisible Range Input */
+.rotation-slider {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  opacity: 0;
+  cursor: ew-resize;
+  z-index: 5;
+}
+
+.rotate-reset-btn {
+  align-self: center;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  padding: 4px 12px;
+  transition: color 0.2s ease;
+}
+
+.rotate-reset-btn:hover {
+  color: var(--accent-color);
+}
 `;

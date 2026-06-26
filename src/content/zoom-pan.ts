@@ -163,10 +163,22 @@ export class ZoomPanController {
     return Math.sqrt(dx * dx + dy * dy);
   }
 
+  private rotation: number = 0;
+
+  public setRotation(degrees: number) {
+    this.rotation = degrees;
+    this.applyTransform();
+  }
+
+  public getRotation(): number {
+    return this.rotation;
+  }
+
   public reset() {
     this.scale = 1;
     this.posX = 0;
     this.posY = 0;
+    this.rotation = 0;
     this.applyTransform();
   }
 
@@ -177,7 +189,7 @@ export class ZoomPanController {
       this.posY = 0;
     }
 
-    this.image.style.transform = `translate3d(${this.posX}px, ${this.posY}px, 0) scale(${this.scale})`;
+    this.image.style.transform = `translate3d(${this.posX}px, ${this.posY}px, 0) scale(${this.scale}) rotate(${this.rotation}deg)`;
     this.onStateChange(this.scale > 1.05);
   }
 
